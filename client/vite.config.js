@@ -7,7 +7,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://localhost:5000",
+        target: "https://food-recipie-generator-1-vr8n.onrender.com",
         changeOrigin: true,
       },
     },
