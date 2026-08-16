@@ -8,13 +8,14 @@ const analyzeImage = async (req, res) => {
       return res.status(400).json({ error: "No image file uploaded" });
     }
 
-    // STEP A: Convert buffer to Base64 with MIME type
+    // Convert image to Base64
     const base64Image = req.file.buffer.toString("base64");
     const mimeType = req.file.mimetype;
 
-    // STEP B: Call Groq Vision (LLaMA 4 Scout)
+    // Call Groq Vision
     const response = await groq.chat.completions.create({
       model: "qwen/qwen3.6-27b",
+
       messages: [
         {
           role: "user",
@@ -27,37 +28,53 @@ const analyzeImage = async (req, res) => {
             },
             {
               type: "text",
-              text: 'Analyze this food image carefully. Identify all visible ingredients, food items, or dishes. Return ONLY a JSON array of ingredient names. Example: ["tomato", "onion", "chicken", "rice"]. If this is a prepared dish, identify the dish name and its likely ingredients.',
+              text: `Analyze this food image.
+
+Identify all visible food ingredients or food items.
+
+Return ONLY a valid JSON object in exactly this format:
+{
+  "ingredients": ["ingredient1", "ingredient2", "ingredient3"]
+}
+
+Do not include explanations, markdown, or any other text.`,
             },
           ],
         },
       ],
+
+      // Disable Qwen reasoning for this simple vision task
+      reasoning_effort: "none",
+
+      // Force valid JSON
+      response_format: {
+        type: "json_object",
+      },
+
       max_tokens: 500,
     });
 
     const text = response.choices[0].message.content;
 
-    // STEP C: Parse JSON array from the response
-    const jsonMatch = text.match(/\[[\s\S]*?\]/);
-    let ingredients = [];
+    console.log("Groq response:", text);
 
-    if (jsonMatch) {
-      try {
-        ingredients = JSON.parse(jsonMatch[0]);
-      } catch {
-        // Fallback: split comma-separated plain text if JSON is malformed
-        ingredients = text
-          .replace(/[\[\]"]/g, "")
-          .split(",")
-          .map((i) => i.trim())
-          .filter(Boolean);
-      }
-    }
+    // Parse JSON directly
+    const parsed = JSON.parse(text);
 
-    res.json({ ingredients, rawResponse: text });
+    const ingredients = Array.isArray(parsed.ingredients)
+      ? parsed.ingredients
+      : [];
+
+    res.json({
+      ingredients,
+      rawResponse: text,
+    });
   } catch (error) {
     console.error("Image analysis error:", error);
-    res.status(500).json({ error: "Failed to analyze image" });
+
+    res.status(500).json({
+      error: "Failed to analyze image",
+    });
   }
 };
 
