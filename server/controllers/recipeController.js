@@ -8,13 +8,6 @@ const analyzeImage = async (req, res) => {
       return res.status(400).json({ error: "No image file uploaded" });
     }
 
-    const models = await groq.models.list();
-
-    console.log(
-      "Available models:",
-      models.data.map((model) => model.id)
-    );
-
     // STEP A: Convert buffer to Base64 with MIME type
     const base64Image = req.file.buffer.toString("base64");
     const mimeType = req.file.mimetype;
